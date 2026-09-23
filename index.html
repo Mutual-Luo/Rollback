@@ -287,7 +287,7 @@
       <figcaption><b>Overview.</b> (a) Rollback initializes search from real trajectories and restores cached world-model context to branch at critical decision points. (b) Outcomes aggregated over each subtree give relative quality labels for sibling actions under a shared context. (c) Tree-derived labels update the policy, whose real-world rollouts in turn adapt the world model.</figcaption>
     </figure>
     <figure class="figure">
-      <img src="assets/training_pipeline.png" alt="Training timeline with three lanes: real-world episodes, policy updates, and world-model versions phi_0, phi_1, phi_2 separated by adaptation steps." loading="lazy" width="2400" height="738">
+      <img src="assets/training_pipeline.png" alt="Training timeline with three lanes: real-world episodes, policy updates, and world-model versions phi_0, phi_1, phi_2 separated by adaptation steps." loading="lazy" width="2600" height="1000">
       <figcaption><b>Training pipeline.</b> Rollback search in the world model \(\mathcal{W}_\phi\) produces tree-derived supervision \(\mathcal{D}_{\mathrm{tree}}\) that drives successive policy updates. Each update is deployed to the robot between episodes, and accumulated real trajectories \(\mathcal{D}_{\mathrm{real}}\) adapt the world model (LoRA SFT followed by DMD), advancing it from \(\phi_k\) to \(\phi_{k+1}\). The deployed policy runs without any search at inference time.</figcaption>
     </figure>
   </div>
