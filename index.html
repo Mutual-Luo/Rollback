@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rollback</title>
+<meta name="description" content="Rollback: a post-training paradigm that rewinds world models to critical decision points to improve vision-language-action policies.">
+<meta property="og:title" content="Rollback">
+<meta property="og:description" content="Rewinding world models to critical decision points for VLA post-training.">
+<meta property="og:image" content="assets/framework.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23368C79'/%3E%3Cpath d='M22 11a8 8 0 1 0 1.6 8' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M18 10h6V4' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'\\(',right:'\\)',display:false}]});"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #17202B;
+    --ink-2: #3C4756;
+    --muted: #5F6B7A;
+    --line: #E3E8EF;
+    --paper: #FFFFFF;
+    --wash: #F6F8FB;
+    --blue: #417EBB;
+    --blue-bg: #EAF2FC;
+    --violet: #8660B6;
+    --violet-bg: #F1EBFA;
+    --teal: #368C79;
+    --teal-bg: #E6F4EE;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(23, 32, 43, .04), 0 8px 24px rgba(23, 32, 43, .06);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 17px/1.65 "Inter", -apple-system, "Segoe UI", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 820px; }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    padding: 88px 0 56px;
+    text-align: center;
+    background:
+      radial-gradient(900px 320px at 18% -10%, rgba(65, 126, 187, .10), transparent 70%),
+      radial-gradient(900px 320px at 82% -10%, rgba(54, 140, 121, .10), transparent 70%),
+      linear-gradient(180deg, #FBFCFE 0%, #FFFFFF 100%);
+    border-bottom: 1px solid var(--line);
+  }
+  .hero h1 {
+    margin: 0;
+    font-size: clamp(44px, 8vw, 76px);
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -0.035em;
+  }
+  .hero h1 .mark {
+    display: inline-block;
+    width: .62em; height: .62em;
+    margin-right: .16em;
+    vertical-align: .02em;
+  }
+  .hero .subtitle {
+    margin: 18px auto 0;
+    max-width: 760px;
+    font-size: clamp(19px, 2.6vw, 25px);
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-wrap: balance;
+  }
+  .hero .authors { margin-top: 26px; font-size: 17px; color: var(--muted); }
+  .links { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 15px; font-weight: 600;
+    background: var(--ink); color: #fff;
+    border: 1px solid var(--ink);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn svg { width: 17px; height: 17px; }
+  .btn.soon { background: #fff; color: var(--muted); border-color: var(--line); cursor: default; }
+  .btn.soon:hover { transform: none; box-shadow: none; }
+  .btn .tag { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #9AA4B2; }
+
+  /* ---------- sections ---------- */
+  section { padding: 64px 0; }
+  section + section { border-top: 1px solid var(--line); }
+  section.alt { background: var(--wash); }
+  h2 {
+    margin: 0 0 22px;
+    font-size: 30px; line-height: 1.2;
+    font-weight: 700; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 12px;
+  }
+  h2::before { content: ""; width: 5px; height: 26px; border-radius: 3px; background: var(--teal); }
+  h3 { margin: 0 0 8px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  p { margin: 0 0 16px; color: var(--ink-2); }
+  .lead { font-size: 18.5px; color: var(--ink-2); }
+
+  /* ---------- key idea ---------- */
+  .insight {
+    margin: 0 0 36px;
+    padding: 26px 30px;
+    border-radius: var(--radius);
+    background: linear-gradient(110deg, #FFFFFF 0%, var(--teal-bg) 100%);
+    border: 1px solid rgba(54, 140, 121, .28);
+    font-size: 21px; line-height: 1.5; font-weight: 500;
+    color: var(--ink);
+  }
+  .insight strong { color: var(--teal); font-weight: 700; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 22px 18px;
+    box-shadow: var(--shadow);
+    border-top: 4px solid var(--c);
+  }
+  .card .num { font: 600 13px/1 "JetBrains Mono", monospace; color: var(--c); letter-spacing: .04em; margin-bottom: 10px; }
+  .card p { font-size: 15.5px; margin: 0; }
+  .card.blue { --c: var(--blue); }
+  .card.teal { --c: var(--teal); }
+  .card.violet { --c: var(--violet); }
+
+  /* ---------- figures ---------- */
+  figure { margin: 0; }
+  .figure {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .figure img { display: block; width: 100%; height: auto; border-radius: 6px; }
+  figcaption { margin-top: 14px; font-size: 15px; line-height: 1.6; color: var(--muted); }
+  figcaption b { color: var(--ink); }
+  .figure + .figure { margin-top: 28px; }
+
+  /* ---------- tasks ---------- */
+  .tasks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .task { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .task img { display: block; width: 100%; aspect-ratio: 16 / 7; object-fit: cover; }
+  .task .body { padding: 16px 18px 18px; }
+  .task p { font-size: 15px; margin: 0; }
+  .note { font-size: 14px; color: var(--muted); margin-top: 14px; }
+
+  /* ---------- tables ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; font-size: 15.5px; min-width: 620px; }
+  th, td { padding: 12px 16px; text-align: center; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--ink); background: #FAFBFD; }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tr.ours td { background: var(--teal-bg); font-weight: 700; color: var(--ink); }
+  td.pending { color: #A0A9B6; font-family: "JetBrains Mono", monospace; font-size: 14px; }
+  .tables { display: grid; gap: 28px; }
+  .table-title { font-size: 15px; font-weight: 600; color: var(--ink-2); margin: 0 0 10px; }
+
+  /* ---------- bibtex ---------- */
+  pre {
+    margin: 0;
+    padding: 20px 22px;
+    background: #0F1720;
+    color: #E6EDF5;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    font: 14px/1.6 "JetBrains Mono", monospace;
+  }
+  .copy {
+    float: right;
+    margin: -4px -6px 0 12px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    background: transparent; color: #C9D3DE;
+    font: 500 12px "Inter", sans-serif; cursor: pointer;
+  }
+  .copy:hover { background: rgba(255, 255, 255, .08); }
+
+  footer { padding: 36px 0 48px; text-align: center; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); }
+
+  @media (max-width: 820px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 16px; }
+    header.hero { padding: 64px 0 44px; }
+    section { padding: 48px 0; }
+    .cards, .tasks { grid-template-columns: 1fr; }
+    .insight { font-size: 18px; padding: 20px 22px; }
+    .figure { padding: 10px; }
+    h2 { font-size: 25px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#368C79"/><path d="M22 11a8 8 0 1 0 1.6 8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M18 10h6V4" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>Rollback</h1>
+    <!-- TODO: replace with the official paper title. -->
+    <p class="subtitle">Rewinding World Models to Critical Decisions for Vision-Language-Action Post-Training</p>
+    <p class="authors">Anonymous Authors</p>
+    <nav class="links" aria-label="Resources">
+      <span class="btn soon" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Paper <span class="tag">soon</span>
+      </span>
+      <span class="btn soon" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 9l3 3-3 3M13 15h3"/></svg>
+        arXiv <span class="tag">soon</span>
+      </span>
+      <span class="btn soon" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+        Code <span class="tag">soon</span>
+      </span>
+      <span class="btn soon" title="Coming soon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M10 8l6 4-6 4z"/></svg>
+        Video <span class="tag">soon</span>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section id="abstract">
+  <div class="wrap narrow">
+    <h2>Abstract</h2>
+    <p class="lead">
+      Action-conditioned world models offer a scalable alternative to costly real-world interaction for post-training vision-language-action (VLA) models.
+      However, existing world-model-based methods largely treat world models as forward-only surrogates of the physical environment, leaving untapped a capability no physical environment affords: rewinding to any past state to explore counterfactual futures.
+      In this work, we introduce <b>Rollback</b>, a post-training paradigm that turns world models from passive simulators into counterfactual engines: it rolls back to critical decision points, branches into alternative actions, and contrasts their outcomes to attribute success to individual decisions.
+      This concentrates imagination where it matters most and distills counterfactual outcomes into fine-grained, action-level supervision without a separately learned value model.
+      Furthermore, we build a scalable training system that unifies distributed world-model search with asynchronous real-robot execution, forming a self-reinforcing cycle: real-world experience continually sharpens the world model, and a sharper world model in turn drives further policy improvement.
+      Experiments on three challenging real-world tasks, block extraction, ball tossing, and tabletop hockey, show that Rollback achieves higher success rates than strong baselines and more stable improvement throughout training.
+    </p>
+  </div>
+</section>
+
+<section id="idea" class="alt">
+  <div class="wrap">
+    <h2>Key Idea</h2>
+    <div class="insight">
+      A physical robot cannot undo an action. <strong>A world model can.</strong>
+      Rollback rewinds imagination to the decisions that determine success, tries alternative actions from the same moment, and learns from how their outcomes differ.
+    </div>
+    <div class="cards">
+      <article class="card blue">
+        <div class="num">01</div>
+        <h3>Memory-backtracking tree search</h3>
+        <p>Starting from successful and failed real-world trajectories, Rollback restores cached world-model context at intermediate decision points and branches into alternative action chunks. Monte Carlo tree search allocates simulation budget toward decisions whose alternatives lead to divergent outcomes.</p>
+      </article>
+      <article class="card teal">
+        <div class="num">02</div>
+        <h3>Tree-structured value estimation</h3>
+        <p>Sibling branches share a decision context, so contrasting their downstream outcomes isolates the effect of individual actions. Subtree-level outcome aggregation yields action-level advantage supervision \(\mathcal{D}_{\mathrm{tree}}\) without an additional learned value model.</p>
+      </article>
+      <article class="card violet">
+        <div class="num">03</div>
+        <h3>World model&ndash;policy co-evolution</h3>
+        <p>A scalable training system couples distributed world-model search with asynchronous real-robot execution. Real trajectories \(\mathcal{D}_{\mathrm{real}}\) continually adapt the world model \(\mathcal{W}_\phi\), which in turn supports further improvement of the policy \(\pi_\theta\).</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap">
+    <h2>Method</h2>
+    <figure class="figure">
+      <img src="assets/framework.png" alt="Rollback framework: (a) memory-backtracking search from real trajectories, (b) tree-structured relative values from subtree success rates, (c) world model and policy co-evolution." loading="lazy" width="1600" height="690">
+      <figcaption><b>Overview.</b> (a) Rollback initializes search from real trajectories and restores cached world-model context to branch at critical decision points. (b) Outcomes aggregated over each subtree give relative quality labels for sibling actions under a shared context. (c) Tree-derived labels update the policy, whose real-world rollouts in turn adapt the world model.</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="assets/training_pipeline.png" alt="Training timeline with three lanes: real-world episodes, policy updates, and world-model versions phi_0, phi_1, phi_2 separated by adaptation steps." loading="lazy" width="2400" height="738">
+      <figcaption><b>Training pipeline.</b> Rollback search in the world model \(\mathcal{W}_\phi\) produces tree-derived supervision \(\mathcal{D}_{\mathrm{tree}}\) that drives successive policy updates. Each update is deployed to the robot between episodes, and accumulated real trajectories \(\mathcal{D}_{\mathrm{real}}\) adapt the world model (LoRA SFT followed by DMD), advancing it from \(\phi_k\) to \(\phi_{k+1}\). The deployed policy runs without any search at inference time.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="tasks" class="alt">
+  <div class="wrap">
+    <h2>Real-World Tasks</h2>
+    <p>We evaluate on an AgiBot Genie G2 with OmniPicker grippers across three tasks that span contact-rich manipulation, precise control, and competitive interaction.</p>
+    <div class="tasks">
+      <article class="task">
+        <img src="assets/task_block_extraction.jpg" alt="Robot extracting a block from a stacked tower" loading="lazy">
+        <div class="body">
+          <h3>Block Extraction</h3>
+          <p>Remove blocks one at a time from a stacked structure without making it collapse.</p>
+        </div>
+      </article>
+      <article class="task">
+        <img src="assets/task_ball_tossing.jpg" alt="Robot tossing a ball toward a bucket" loading="lazy">
+        <div class="body">
+          <h3>Ball Tossing</h3>
+          <p>Throw a ball into a bucket, which requires precise control of the throwing motion and release timing.</p>
+        </div>
+      </article>
+      <article class="task">
+        <img src="assets/task_tabletop_hockey.jpg" alt="Robot playing tabletop hockey" loading="lazy">
+        <div class="body">
+          <h3>Tabletop Hockey</h3>
+          <p>Play two pucks against a human opponent; later shots can displace earlier pucks, and proximity to the target decides the winner.</p>
+        </div>
+      </article>
+    </div>
+    <p class="note">Task images are illustrative. Real-robot rollout videos will be added.</p>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <h2>Results</h2>
+    <div class="tables">
+      <div>
+        <p class="table-title">Success rate (%) on three real-world tasks, 100 trials per task.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Method</th><th>Block Extraction</th><th>Ball Tossing</th><th>Tabletop Hockey</th><th>Average</th></tr></thead>
+            <tbody>
+              <tr><td>\(\pi_{0.5}\) + SFT</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr><td>\(\pi_{0.5}\) + PPO</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr><td>\(\pi_{0.5}\) + RECAP</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr><td>\(\pi_{0.5}\) + RISE</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr class="ours"><td>Rollback (Ours)</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <p class="table-title">Ablations on Block Extraction.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Variant</th><th>Target Contact</th><th>Grasp Success</th><th>Task Success</th></tr></thead>
+            <tbody>
+              <tr><td>Frozen world model</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr><td>Direct reward supervision</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr><td>Uniform ternary search</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+              <tr class="ours"><td>Rollback (Full)</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td><td class="pending">&mdash;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="note">Numbers will be released with the paper.</p>
+  </div>
+</section>
+
+<section id="citation" class="alt">
+  <div class="wrap narrow">
+    <h2>Citation</h2>
+    <pre id="bib"><button class="copy" type="button" onclick="copyBib(this)">Copy</button>@article{rollback2026,
+  title   = {Rollback},
+  author  = {Anonymous},
+  year    = {2026},
+  note    = {Under review}
+}</pre>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">Rollback project page.</div>
+</footer>
+
+<script>
+  function copyBib(btn) {
+    const text = document.getElementById('bib').innerText.replace(/^Copy\s*/, '');
+    const done = () => { btn.textContent = 'Copied'; setTimeout(() => (btn.textContent = 'Copy'), 1500); };
+    try { navigator.clipboard.writeText(text).then(done, () => {}); } catch (e) { /* clipboard unavailable */ }
+  }
+</script>
+</body>
+</html>
