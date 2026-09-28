@@ -1,5 +1,5 @@
 # Rollback
 
-Project page for **Rollback**, a post-training paradigm that rewinds world models to critical decision points to improve vision-language-action (VLA) policies.
+Anonymous project page for **Rollback: Experience Backtracking in World Models for Policy Improvement**.
 
 The site is a static page (`index.html` + `assets/`) served by GitHub Pages from the `main` branch root.
